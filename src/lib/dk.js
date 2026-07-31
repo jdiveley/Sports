@@ -100,8 +100,11 @@ export async function fetchDKSlates(sportConfig) {
   const r = await fetch(`https://api.draftkings.com/draftgroups/v1/?sport=${sportConfig.dkSport}`);
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
+  // DraftKings' API ignores the `sport` query param and always returns every
+  // sport's slates mixed together, so we filter client-side.
   const seen = new Set();
   const groups = (j.draftGroups || []).filter(g =>
+    g.contestType?.sport === sportConfig.dkSport &&
     g.contestType?.gameType === 'SalaryCap' && g.draftGroupState === 'Upcoming' &&
     !seen.has(g.draftGroupId) && seen.add(g.draftGroupId)
   );
