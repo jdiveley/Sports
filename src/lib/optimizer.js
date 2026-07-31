@@ -62,6 +62,45 @@ function randomLine(pool, settings) {
 const lineKey = line => line.map(p => p.name).sort().join('|');
 function uniqueEnough(a, b, n) { const A = new Set(a.map(p => p.name)); const same = b.filter(p => A.has(p.name)).length; return a.length - same >= n; }
 
+// Nudges a randomly-built lineup toward the [minSpend, salaryCap] band via
+// like-for-like (same real position) swaps, so the salary shape stays valid.
+// Pure random sampling rarely lands in a narrow band on its own — this fixes
+// the "optimizer often returns 0 lineups even though valid ones exist" issue.
+function repairSalary(line, pool, settings) {
+  const cap = +settings.salaryCap, min = +settings.minSpend;
+  const total = () => line.reduce((s, p) => s + p.salary, 0);
+  let guard = 0;
+  while (total() > cap && guard++ < 30) {
+    const used = new Set(line.map(p => p.name));
+    const order = [...line].sort((a, b) => b.salary - a.salary);
+    let swapped = false;
+    for (const cur of order) {
+      const options = pool.filter(p => p.pos === cur.pos && !used.has(p.name) && p.salary < cur.salary)
+        .sort((a, b) => b.salary - a.salary);
+      if (!options.length) continue;
+      line[line.indexOf(cur)] = options[0];
+      swapped = true;
+      break;
+    }
+    if (!swapped) break;
+  }
+  while (total() < min && guard++ < 30) {
+    const used = new Set(line.map(p => p.name));
+    const order = [...line].sort((a, b) => a.salary - b.salary);
+    let swapped = false;
+    for (const cur of order) {
+      const options = pool.filter(p => p.pos === cur.pos && !used.has(p.name) && p.salary > cur.salary && total() - cur.salary + p.salary <= cap)
+        .sort((a, b) => a.salary - b.salary);
+      if (!options.length) continue;
+      line[line.indexOf(cur)] = options[0];
+      swapped = true;
+      break;
+    }
+    if (!swapped) break;
+  }
+  return line;
+}
+
 export function optimize(players, settings, states) {
   const pool = players.filter(p => !(settings.excludeOut && p.injury === 'OUT') && states[p.name] !== 'excluded');
   if (['QB', 'RB', 'WR', 'TE', 'DST'].some(x => !pool.some(p => p.pos === x))) return { error: 'Player pool is missing positions' };
@@ -69,7 +108,7 @@ export function optimize(players, settings, states) {
   const cand = new Map();
   const variance = (+settings.variance || 0) / 100;
   for (let z = 0; z < attempts; z++) {
-    const line = randomLine(pool, settings);
+    const line = repairSalary(randomLine(pool, settings), pool, settings);
     if (!lineupValid(line, settings, states)) continue;
     const k = lineKey(line);
     if (cand.has(k)) continue;
