@@ -101,10 +101,14 @@ export async function fetchDKSlates(sportConfig) {
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   // DraftKings' API ignores the `sport` query param and always returns every
-  // sport's slates mixed together, so we filter client-side.
+  // sport's slates mixed together, so we filter client-side. contestType.sport
+  // alone isn't enough to tell NBA and WNBA apart (DK tags both 'NBA') —
+  // dkLeague checks leagues[0].leagueAbbreviation for sports where that
+  // ambiguity exists.
   const seen = new Set();
   const groups = (j.draftGroups || []).filter(g =>
     g.contestType?.sport === sportConfig.dkSport &&
+    (!sportConfig.dkLeague || g.leagues?.[0]?.leagueAbbreviation === sportConfig.dkLeague) &&
     g.contestType?.gameType === 'SalaryCap' && g.draftGroupState === 'Upcoming' &&
     !seen.has(g.draftGroupId) && seen.add(g.draftGroupId)
   );

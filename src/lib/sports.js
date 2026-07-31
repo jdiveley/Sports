@@ -26,7 +26,7 @@ export const SPORTS = {
   },
   nba: {
     id: 'nba', label: 'NBA', icon: '🏀',
-    dkSport: 'NBA', espnPath: 'basketball/nba',
+    dkSport: 'NBA', dkLeague: 'NBA', espnPath: 'basketball/nba',
     hasSchedule: true, hasAutoStats: true, stackMode: 'none',
     positions: ['PG', 'SG', 'SF', 'PF', 'C'],
     posPriority: ['PG', 'SG', 'SF', 'PF', 'C'],
@@ -89,7 +89,10 @@ export const SPORTS = {
   },
   wnba: {
     id: 'wnba', label: 'WNBA', icon: '🏀',
-    dkSport: 'WNBA', espnPath: 'basketball/wnba',
+    // DraftKings' draftgroups API tags every WNBA slate with contestType.sport
+    // 'NBA' too (never 'WNBA') — only leagues[0].leagueAbbreviation tells them
+    // apart, hence dkLeague below.
+    dkSport: 'NBA', dkLeague: 'WNBA', espnPath: 'basketball/wnba',
     hasSchedule: true, hasAutoStats: true, stackMode: 'none',
     positions: ['G', 'F'],
     posPriority: ['G', 'F'],
