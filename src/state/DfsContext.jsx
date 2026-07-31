@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS = {
   site: 'dk', salaryCap: 50000, minSpend: 47000, lineupCount: 10, strategy: 'balanced',
   recentWeight: .65, matchupImpact: .10, variance: 8,
   maxTeam: 4, maxExposure: 70, uniquePlayers: 2, attempts: 12000,
-  excludeOut: true, qbStack: true, bringBack: false,
+  qbStack: true, bringBack: false,
   dkExportMode: 'classic', dkCellFormat: 'id',
   defPos: 'QB'
 };

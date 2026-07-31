@@ -40,12 +40,12 @@ export default function OptimizerPane() {
           <div className="c3"><label>Max player exposure %</label><input type="number" min="10" max="100" value={settings.maxExposure} onChange={e => updateSetting('maxExposure', e.target.value)} /></div>
           <div className="c3"><label>Minimum unique players</label><input type="number" min="1" max="6" value={settings.uniquePlayers} onChange={e => updateSetting('uniquePlayers', e.target.value)} /></div>
           <div className="c3"><label>Optimizer attempts</label><input type="number" min="1000" max="50000" step="1000" value={settings.attempts} onChange={e => updateSetting('attempts', e.target.value)} /></div>
-          <div className="c4"><div className="switch"><input type="checkbox" checked={settings.excludeOut} onChange={e => updateSetting('excludeOut', e.target.checked)} /><span>Exclude OUT players</span></div></div>
           {sportConfig.stackMode === 'passcatcher' && <>
             <div className="c4"><div className="switch"><input type="checkbox" checked={settings.qbStack} onChange={e => updateSetting('qbStack', e.target.checked)} /><span>Require QB stack</span></div></div>
             <div className="c4"><div className="switch"><input type="checkbox" checked={settings.bringBack} onChange={e => updateSetting('bringBack', e.target.checked)} /><span>Require opponent bring-back</span></div></div>
           </>}
         </div>
+        <p className="note" style={{ marginTop: 9 }}>Players ruled OUT are always excluded from generated lineups — this isn't optional, since a real DK lineup can't include them.</p>
       </div>
       <button className="primary" style={{ width: '100%', padding: 14 }} onClick={runOptimize}>⚡ Generate Ultimate Lineups</button>
       <div className="card">

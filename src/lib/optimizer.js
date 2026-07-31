@@ -12,7 +12,7 @@ export function findStacks(players, settings) {
     if (type === 'single') mates.forEach(a => all.push([q, a]));
     else for (let i = 0; i < mates.length; i++) for (let j = i + 1; j < mates.length; j++) {
       const core = [q, mates[i], mates[j]];
-      if (type === 'bringback') players.filter(p => p.team === q.opp && ['RB', 'WR', 'TE'].includes(p.pos)).forEach(b => all.push([...core, b]));
+      if (type === 'bringback') players.filter(p => p.team === q.opp && ['RB', 'WR', 'TE'].includes(p.pos) && p.injury !== 'OUT').forEach(b => all.push([...core, b]));
       else all.push(core);
     }
   });
@@ -80,6 +80,10 @@ function lineupValid(line, settings, states, sportConfig) {
   const locks = Object.keys(states).filter(k => states[k] === 'locked');
   if (locks.some(n => !line.some(p => p.name === n))) return false;
   if (line.some(p => states[p.name] === 'excluded')) return false;
+  // A player ruled OUT can't actually be submitted in a real DK lineup, so
+  // this is a hard rule independent of the pool pre-filter below — not a
+  // preference a setting can turn off.
+  if (line.some(p => p.injury === 'OUT')) return false;
   if (sportConfig.stackMode === 'passcatcher') {
     const q = line.find(p => p.pos === 'QB');
     if (settings.qbStack && q && !line.some(p => p.team === q.team && ['WR', 'TE'].includes(p.pos))) return false;
@@ -141,7 +145,9 @@ function repairSalary(line, pool, settings) {
 }
 
 export function optimize(players, settings, states, sportConfig) {
-  const pool = players.filter(p => !(settings.excludeOut && p.injury === 'OUT') && states[p.name] !== 'excluded');
+  const lockedOut = Object.keys(states).filter(n => states[n] === 'locked' && players.find(p => p.name === n)?.injury === 'OUT');
+  if (lockedOut.length) return { error: `Locked player(s) ruled OUT can't be used: ${lockedOut.join(', ')}. Unlock them first.` };
+  const pool = players.filter(p => p.injury !== 'OUT' && states[p.name] !== 'excluded');
   if (sportConfig.positions.some(x => !pool.some(p => p.pos === x))) return { error: 'Player pool is missing positions' };
   const attempts = clamp(+settings.attempts || 12000, 1000, 50000);
   const cand = new Map();
