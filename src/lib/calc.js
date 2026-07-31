@@ -41,6 +41,7 @@ export function calc(p, settings) {
   if (ax.nhlToi !== undefined) advanced += clamp((+ax.nhlToi - 15) * .003, -.03, .05) + clamp((+ax.nhlShots - 2) * .015, -.02, .04);
   if (ax.nhlSavePct !== undefined) advanced += clamp((+ax.nhlSavePct - .9) * 1.5, -.04, .06);
   if (ax.nbaMin !== undefined) advanced += clamp((+ax.nbaMin - 28) * .003, -.03, .06) + clamp((+ax.nbaPtsAvg - 14) * .002, -.02, .04);
+  if (ax.golfAvgToPar !== undefined) advanced += clamp(-(+ax.golfAvgToPar) * .01, -.05, .08);
   const inj = p.injury === 'Q' ? .95 : p.injury === 'D' ? .78 : p.injury === 'OUT' ? .03 : 1;
   const proj = Math.max(0, base * (1 + trend + matchup + env + usageBoost + advanced) * inj);
   const volatility = sd(g), floor = Math.max(0, proj - .72 * volatility), ceiling = proj + 1.15 * volatility;
@@ -73,6 +74,7 @@ export function usageLabel(p) {
   if (a.nhlSavePct !== undefined) return `${((+a.nhlSavePct) * 100).toFixed(1)}% SV%`;
   if (a.nhlToi !== undefined) return `${(+a.nhlToi).toFixed(1)} TOI · ${(+a.nhlShots || 0).toFixed(1)} SOG`;
   if (a.nbaMin !== undefined) return `${(+a.nbaMin).toFixed(1)} MIN · ${(+a.nbaPtsAvg || 0).toFixed(1)} PTS`;
+  if (a.golfAvgToPar !== undefined) return `${(+a.golfAvgToPar).toFixed(2)} avg to par · ${a.golfRounds || 0} rounds`;
   if (p.pos === 'QB') return a.attempts ? `${(+a.attempts).toFixed(1)} att · ${(+a.rushAttempts || 0).toFixed(1)} rush` : (p.usage || '—');
   if (p.pos === 'RB') return a.opportunities ? `${(+a.opportunities).toFixed(1)} opp · ${(+a.targets || 0).toFixed(1)} tgt` : (p.usage || '—');
   if (p.pos === 'WR' || p.pos === 'TE') return a.targets ? `${(+a.targets).toFixed(1)} tgt · ${((+a.targetShare || 0) * 100).toFixed(0)}% share` : (p.usage || '—');

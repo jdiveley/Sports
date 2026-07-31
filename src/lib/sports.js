@@ -108,10 +108,11 @@ export const SPORTS = {
   golf: {
     id: 'golf', label: 'Golf', icon: '⛳',
     dkSport: 'GOLF', espnPath: 'golf/pga',
-    hasSchedule: false, hasAutoStats: false, stackMode: 'none', hasTeams: false,
+    hasSchedule: false, hasAutoStats: true, stackMode: 'none', hasTeams: false,
     positions: ['G'],
     posPriority: ['G'],
     posAliases: {},
+    defendedPositions: [],
     rosterSlots: [
       { label: 'G', elig: ['G'] },
       { label: 'G', elig: ['G'] },

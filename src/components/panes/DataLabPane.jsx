@@ -7,7 +7,8 @@ const SOURCE_NOTE = {
   mlb: 'Pulls recent hitting and pitching game logs from the official MLB Stats API, matches them to your DFS salary pool, populates recent DK-style fantasy scores, and calculates opponent fantasy-points-allowed ranks by position.',
   nba: 'Scans recent completed games via ESPN box scores, matches players to your DFS salary pool, populates recent DK-style fantasy scores, and calculates opponent fantasy-points-allowed ranks (grouped Guard/Forward/Center). Slower than a single bulk file since it fetches many recent box scores.',
   wnba: 'Scans recent completed games via ESPN box scores, matches players to your DFS salary pool, populates recent DK-style fantasy scores, and calculates opponent fantasy-points-allowed ranks by position. Slower than a single bulk file since it fetches many recent box scores.',
-  nhl: 'Scans recent completed games via ESPN box scores, matches skaters and goalies to your DFS salary pool, populates recent DK-style fantasy scores, and calculates opponent fantasy-points-allowed ranks by position. Slower than a single bulk file since it fetches many recent box scores.'
+  nhl: 'Scans recent completed games via ESPN box scores, matches skaters and goalies to your DFS salary pool, populates recent DK-style fantasy scores, and calculates opponent fantasy-points-allowed ranks by position. Slower than a single bulk file since it fetches many recent box scores.',
+  golf: "Pulls hole-by-hole scoring from recent PGA Tour events via ESPN, matches golfers to your DFS pool, and derives DK-style fantasy scores per round (eagle/birdie/par/bogey buckets plus streak, bogey-free, and sub-70 bonuses). No opponent or team concept in golf, so there's no defense-vs-position ranking — and made-cut/finish-position bonuses aren't included since those need final-leaderboard data."
 };
 
 const USAGE_MODEL = {
@@ -26,7 +27,8 @@ const USAGE_MODEL = {
   nhl: [
     ['Skaters', 'Time on ice · shots on goal'],
     ['Goalies', 'Save percentage']
-  ]
+  ],
+  golf: [['Golfers', 'Average score to par · recent rounds played']]
 };
 
 export default function DataLabPane() {
@@ -97,26 +99,28 @@ export default function DataLabPane() {
           </div>
         ) : <div className="small">Import a DFS player pool first, then run automatic stats.</div>}
       </div>
-      <div className="card">
-        <h3>Defense vs position</h3>
-        <div className="grid">
-          <div className="c3"><label>Position</label>
-            <select value={settings.defPos} onChange={e => updateSetting('defPos', e.target.value)}>
-              {defPositions.map(p => <option key={p}>{p}</option>)}
-            </select>
-          </div>
-          <div className="c9"><label>&nbsp;</label><div className="small">Rank 1 = toughest / fewest fantasy points allowed. Highest rank = easiest / most fantasy points allowed.</div></div>
-        </div>
-        <div style={{ marginTop: 8 }}>
-          {defArr.length ? defArr.map(([team, x]) => (
-            <div className="rankcard" key={team}>
-              <div className="ranknum">{x.rank}</div>
-              <div className="rankname"><b>{team}</b><span className="small">{x.avg.toFixed(1)} fantasy points allowed / {unit.slice(0, -1)} to {settings.defPos}</span></div>
-              <div className={x.rank <= 8 ? 'good' : x.rank >= 25 ? 'bad' : 'gold'}>{x.rank <= 8 ? 'TOUGH' : x.rank >= 25 ? 'TARGET' : 'MID'}</div>
+      {defPositions.length > 0 && (
+        <div className="card">
+          <h3>Defense vs position</h3>
+          <div className="grid">
+            <div className="c3"><label>Position</label>
+              <select value={settings.defPos} onChange={e => updateSetting('defPos', e.target.value)}>
+                {defPositions.map(p => <option key={p}>{p}</option>)}
+              </select>
             </div>
-          )) : <div className="small">Run automatic stats to build defense-vs-position rankings.</div>}
+            <div className="c9"><label>&nbsp;</label><div className="small">Rank 1 = toughest / fewest fantasy points allowed. Highest rank = easiest / most fantasy points allowed.</div></div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {defArr.length ? defArr.map(([team, x]) => (
+              <div className="rankcard" key={team}>
+                <div className="ranknum">{x.rank}</div>
+                <div className="rankname"><b>{team}</b><span className="small">{x.avg.toFixed(1)} fantasy points allowed / {unit.slice(0, -1)} to {settings.defPos}</span></div>
+                <div className={x.rank <= 8 ? 'good' : x.rank >= 25 ? 'bad' : 'gold'}>{x.rank <= 8 ? 'TOUGH' : x.rank >= 25 ? 'TARGET' : 'MID'}</div>
+              </div>
+            )) : <div className="small">Run automatic stats to build defense-vs-position rankings.</div>}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

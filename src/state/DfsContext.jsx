@@ -8,6 +8,7 @@ import { matchAutoStats as matchAutoStatsGeneric, buildDefenseRanks as buildDefe
 import { fetchMLBRows, buildMLBUsage } from '../lib/autostats/mlb.js';
 import { fetchNBARows, buildNBAUsage, NBA_DEFENDED_POSITIONS, nbaPosGroup } from '../lib/autostats/nba.js';
 import { fetchNHLRows, buildNHLUsage } from '../lib/autostats/nhl.js';
+import { fetchGolfRows, buildGolfUsage } from '../lib/autostats/golf.js';
 import { findStacks as findStacksLib, findTeamStacks as findTeamStacksLib, optimize as optimizeLib, buildDKExportCSV, downloadText } from '../lib/optimizer.js';
 import { SPORTS, SPORT_LIST, DEFAULT_SPORT, tabsForSport } from '../lib/sports.js';
 
@@ -295,6 +296,10 @@ export function DfsProvider({ children }) {
       } else if (sport === 'nhl') {
         fetchResult = await fetchNHLRows(sportConfig, Math.max(7, hist * 3));
         usageBuilder = buildNHLUsage;
+        positions = sportConfig.defendedPositions;
+      } else if (sport === 'golf') {
+        fetchResult = await fetchGolfRows(Math.max(14, hist * 7));
+        usageBuilder = buildGolfUsage;
         positions = sportConfig.defendedPositions;
       } else {
         toast(`Automatic stats aren't available for ${sportConfig.label} yet`);
