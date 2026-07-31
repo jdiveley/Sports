@@ -24,26 +24,6 @@ export const SPORTS = {
     ],
     salaryCap: 50000, minSpend: 47000
   },
-  nba: {
-    id: 'nba', label: 'NBA', icon: '🏀',
-    dkSport: 'NBA', dkLeague: 'NBA', espnPath: 'basketball/nba',
-    hasSchedule: true, hasAutoStats: true, stackMode: 'none',
-    positions: ['PG', 'SG', 'SF', 'PF', 'C'],
-    posPriority: ['PG', 'SG', 'SF', 'PF', 'C'],
-    posAliases: {},
-    defendedPositions: ['G', 'F', 'C'],
-    rosterSlots: [
-      { label: 'PG', elig: ['PG'] },
-      { label: 'SG', elig: ['SG'] },
-      { label: 'SF', elig: ['SF'] },
-      { label: 'PF', elig: ['PF'] },
-      { label: 'C', elig: ['C'] },
-      { label: 'G', elig: ['PG', 'SG'] },
-      { label: 'F', elig: ['SF', 'PF'] },
-      { label: 'UTIL', elig: ['PG', 'SG', 'SF', 'PF', 'C'] }
-    ],
-    salaryCap: 50000, minSpend: 45000
-  },
   mlb: {
     id: 'mlb', label: 'MLB', icon: '⚾',
     dkSport: 'MLB', espnPath: 'baseball/mlb',
@@ -66,26 +46,25 @@ export const SPORTS = {
     ],
     salaryCap: 50000, minSpend: 46000
   },
-  nhl: {
-    id: 'nhl', label: 'NHL', icon: '🏒',
-    dkSport: 'NHL', espnPath: 'hockey/nhl',
-    hasSchedule: true, hasAutoStats: true, stackMode: 'team', stackExcludePos: ['G'],
-    positions: ['C', 'W', 'D', 'G'],
-    posPriority: ['C', 'W', 'D', 'G'],
-    posAliases: { LW: 'W', RW: 'W' },
-    defendedPositions: ['C', 'W', 'D'],
+  nba: {
+    id: 'nba', label: 'NBA', icon: '🏀',
+    dkSport: 'NBA', dkLeague: 'NBA', espnPath: 'basketball/nba',
+    hasSchedule: true, hasAutoStats: true, stackMode: 'none',
+    positions: ['PG', 'SG', 'SF', 'PF', 'C'],
+    posPriority: ['PG', 'SG', 'SF', 'PF', 'C'],
+    posAliases: {},
+    defendedPositions: ['G', 'F', 'C'],
     rosterSlots: [
+      { label: 'PG', elig: ['PG'] },
+      { label: 'SG', elig: ['SG'] },
+      { label: 'SF', elig: ['SF'] },
+      { label: 'PF', elig: ['PF'] },
       { label: 'C', elig: ['C'] },
-      { label: 'C', elig: ['C'] },
-      { label: 'W', elig: ['W'] },
-      { label: 'W', elig: ['W'] },
-      { label: 'W', elig: ['W'] },
-      { label: 'D', elig: ['D'] },
-      { label: 'D', elig: ['D'] },
-      { label: 'UTIL', elig: ['C', 'W', 'D'] },
-      { label: 'G', elig: ['G'] }
+      { label: 'G', elig: ['PG', 'SG'] },
+      { label: 'F', elig: ['SF', 'PF'] },
+      { label: 'UTIL', elig: ['PG', 'SG', 'SF', 'PF', 'C'] }
     ],
-    salaryCap: 50000, minSpend: 46000
+    salaryCap: 50000, minSpend: 45000
   },
   wnba: {
     id: 'wnba', label: 'WNBA', icon: '🏀',
@@ -107,6 +86,27 @@ export const SPORTS = {
       { label: 'UTIL', elig: ['G', 'F'] }
     ],
     salaryCap: 50000, minSpend: 45000
+  },
+  nhl: {
+    id: 'nhl', label: 'NHL', icon: '🏒',
+    dkSport: 'NHL', espnPath: 'hockey/nhl',
+    hasSchedule: true, hasAutoStats: true, stackMode: 'team', stackExcludePos: ['G'],
+    positions: ['C', 'W', 'D', 'G'],
+    posPriority: ['C', 'W', 'D', 'G'],
+    posAliases: { LW: 'W', RW: 'W' },
+    defendedPositions: ['C', 'W', 'D'],
+    rosterSlots: [
+      { label: 'C', elig: ['C'] },
+      { label: 'C', elig: ['C'] },
+      { label: 'W', elig: ['W'] },
+      { label: 'W', elig: ['W'] },
+      { label: 'W', elig: ['W'] },
+      { label: 'D', elig: ['D'] },
+      { label: 'D', elig: ['D'] },
+      { label: 'UTIL', elig: ['C', 'W', 'D'] },
+      { label: 'G', elig: ['G'] }
+    ],
+    salaryCap: 50000, minSpend: 46000
   },
   golf: {
     id: 'golf', label: 'Golf', icon: '⛳',
