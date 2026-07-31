@@ -115,6 +115,16 @@ button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 12px
 
 <section id="dk" class="pane hidden">
  <div class="card">
+  <h3>🔴 Load live from DraftKings</h3>
+  <p class="note">Pulls the current NFL Classic slate list and player salaries directly from DraftKings' public API. No login required — this reads the same public data shown on the DK lobby/lineup builder.</p>
+  <div class="row">
+   <button class="secondary" id="dkFetchSlates">Fetch NFL slates</button>
+   <select id="dkSlateSelect"><option value="">Fetch slates first…</option></select>
+   <button class="primary" id="dkLoadSlate" disabled>Import slate</button>
+  </div>
+  <div id="dkLiveStatus" class="small" style="margin-top:9px">Not loaded yet.</div>
+ </div>
+ <div class="card">
   <h3>👑 DraftKings Slate Import</h3>
   <p class="note">Use the DraftKings CSV/template for the exact contest slate. V5 detects common DK salary headers, preserves DraftKings player IDs and roster eligibility, and can also remember the lineup-template header for export.</p>
   <label class="dropzone" id="dkDrop">
@@ -646,6 +656,65 @@ function readDKFile(file){
  if(!file)return;let fr=new FileReader();fr.onload=()=>mapDK(fr.result,file.name);fr.onerror=()=>toast('Could not read CSV');fr.readAsText(file);
 }
 $('#dkFile').onchange=e=>readDKFile(e.target.files[0]);
+
+function rowsFromDraftables(json){
+ return (json.draftables||[]).map(d=>{
+  let avgAttr=(d.draftStatAttributes||[]).find(a=>a.id===90);
+  let gameName=(d.competition?.name||'').replace(/\s*@\s*/,'@');
+  let start=d.competition?.startTime?new Date(d.competition.startTime).toLocaleString('en-US',{month:'2-digit',day:'2-digit',hour:'numeric',minute:'2-digit'}):'';
+  return{
+   name:d.displayName||`${d.firstName||''} ${d.lastName||''}`.trim(),
+   dkId:String(d.draftableId||''),
+   roster:(d.position||'').toUpperCase(),
+   salary:+d.salary||0,
+   team:normTeam(d.teamAbbreviation||''),
+   game:start?`${gameName} ${start}`:gameName,
+   avg:avgAttr?+avgAttr.value||0:0
+  };
+ }).filter(r=>r.name&&r.salary&&r.roster);
+}
+function applyDKRows(rows,label){
+ if(!rows.length){$('#dkLiveStatus').textContent='No players found for that slate.';return}
+ dkState={loaded:true,fileName:label,headerRow:0,
+  headers:['Name','ID','Roster Position','Salary','TeamAbbrev','Game Info','AvgPointsPerGame'],
+  mapping:{nameid:-1,name:0,id:1,pos:2,salary:3,team:4,game:5,avg:6},
+  templateRoster:[],rawRows:[],playerRows:rows,games:new Set(rows.map(x=>x.game).filter(Boolean))};
+ mergeDKPlayers(rows);renderDK();
+ $('#dkLiveStatus').textContent=`Loaded ${rows.length} DraftKings players live from ${label}.`;
+ $('#dkStatus').textContent=`Loaded ${rows.length} DraftKings players live from ${label}.`;
+ toast(`${rows.length} DK players loaded live`);
+}
+async function fetchDKSlates(){
+ $('#dkLiveStatus').textContent='Loading NFL slates from DraftKings…';
+ try{
+  let r=await fetch('https://api.draftkings.com/draftgroups/v1/?sport=NFL');
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  let j=await r.json();
+  let seen=new Set();
+  let groups=(j.draftGroups||[]).filter(g=>g.contestType?.gameType==='SalaryCap'&&g.draftGroupState==='Upcoming'&&!seen.has(g.draftGroupId)&&seen.add(g.draftGroupId));
+  groups.sort((a,b)=>new Date(a.minStartTime)-new Date(b.minStartTime));
+  let sel=$('#dkSlateSelect');
+  sel.innerHTML=groups.length?groups.map(g=>{
+   let d=g.minStartTime?new Date(g.minStartTime).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+   let label=`${(g.startTimeSuffix||'').trim()||'Slate '+g.draftGroupId} · ${d}`;
+   return `<option value="${g.draftGroupId}">${label}</option>`;
+  }).join(''):'<option value="">No upcoming NFL Classic slates</option>';
+  $('#dkLiveStatus').textContent=groups.length?`${groups.length} upcoming NFL Classic slates found. Pick one and tap Import slate.`:'No upcoming NFL Classic slates found right now.';
+  $('#dkLoadSlate').disabled=!groups.length;
+ }catch(e){$('#dkLiveStatus').textContent='Could not reach DraftKings. Try again later, or use manual CSV import below.';toast('DK slate list failed')}
+}
+async function loadDKSlate(){
+ let id=$('#dkSlateSelect').value; if(!id)return;
+ $('#dkLiveStatus').textContent='Loading salaries…';
+ try{
+  let r=await fetch(`https://api.draftkings.com/draftgroups/v1/draftgroups/${id}/draftables?format=json`);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  let j=await r.json();
+  applyDKRows(rowsFromDraftables(j),`live slate ${id}`);
+ }catch(e){$('#dkLiveStatus').textContent='Could not load that slate. Try again or use manual CSV import below.';toast('DK live load failed')}
+}
+$('#dkFetchSlates').onclick=fetchDKSlates;
+$('#dkLoadSlate').onclick=loadDKSlate;
 const dz=$('#dkDrop');
 ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
 ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
