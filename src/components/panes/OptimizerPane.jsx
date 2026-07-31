@@ -47,6 +47,7 @@ export default function OptimizerPane() {
           </>}
         </div>
       </div>
+      <button className="primary" style={{ width: '100%', padding: 14 }} onClick={runOptimize}>⚡ Generate Ultimate Lineups</button>
       <div className="card">
         <h3>Locks & exclusions</h3>
         <p className="small">Tap a player's status in the list below. Locked players must appear; excluded players cannot appear.</p>
@@ -62,7 +63,6 @@ export default function OptimizerPane() {
           }) : <div className="small">No players loaded.</div>}
         </div>
       </div>
-      <button className="primary" style={{ width: '100%', padding: 14 }} onClick={runOptimize}>⚡ Generate Ultimate Lineups</button>
     </>
   );
 }
