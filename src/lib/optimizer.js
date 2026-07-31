@@ -25,6 +25,40 @@ export function findStacks(players, settings) {
   return all;
 }
 
+function combinations(arr, k) {
+  const results = [];
+  function go(start, combo) {
+    if (combo.length === k) { results.push(combo.slice()); return; }
+    for (let i = start; i < arr.length; i++) { combo.push(arr[i]); go(i + 1, combo); combo.pop(); }
+  }
+  go(0, []);
+  return results;
+}
+
+// Team-based stacking for sports where correlated same-team scoring is a real
+// strategy (MLB batting order, NHL lines) but there's no fixed "core"
+// position like NFL's QB to build around — any N players from one team who
+// share a game count.
+export function findTeamStacks(players, settings, sportConfig) {
+  const size = clamp(+settings.teamStackSize || 3, 2, 6);
+  const maxSal = +settings.stackSalary || 99999, min = +settings.stackMin || 0;
+  const exclude = sportConfig.stackExcludePos || [];
+  const pool = players.filter(p => !exclude.includes(p.pos) && p.injury !== 'OUT');
+  const byTeam = {};
+  pool.forEach(p => { (byTeam[p.team] ??= []).push(p); });
+  let all = [];
+  Object.values(byTeam).forEach(list => {
+    if (list.length < size) return;
+    all.push(...combinations(list, size));
+  });
+  return all.map(line => ({
+    line,
+    salary: line.reduce((s, p) => s + p.salary, 0),
+    proj: line.reduce((s, p) => s + calc(p, settings).proj, 0),
+    ceiling: line.reduce((s, p) => s + calc(p, settings).ceiling, 0)
+  })).filter(x => x.salary <= maxSal && x.proj >= min).sort((a, b) => b.ceiling - a.ceiling).slice(0, 25);
+}
+
 function weightedPick(arr, settings) {
   if (!arr.length) return null;
   const weights = arr.map(p => Math.max(.01, strategyScore(p, settings) / Math.max(1, p.salary / 1000)));

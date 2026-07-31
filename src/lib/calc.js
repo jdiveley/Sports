@@ -33,6 +33,14 @@ export function calc(p, settings) {
     if (+ax.attempts) advanced += clamp((+ax.attempts - 32) * .002, -.02, .03);
     if (+ax.rushAttempts) advanced += clamp((+ax.rushAttempts - 3) * .006, -.012, .04);
   }
+  // Sport-specific auto-data fields are namespaced (mlb*/nhl*/nba*) so they
+  // never collide with NFL's fields or with each other's same-letter
+  // positions (e.g. MLB catcher vs NHL/NBA center both use 'C').
+  if (ax.mlbPA !== undefined) advanced += clamp((+ax.mlbPA - 4) * .015, -.03, .05) + clamp((+ax.mlbISO - .15) * .3, -.03, .05);
+  if (ax.mlbIP !== undefined) advanced += clamp((+ax.mlbIP - 5) * .01, -.03, .05) + clamp((+ax.mlbKrate - 1) * .05, -.02, .05);
+  if (ax.nhlToi !== undefined) advanced += clamp((+ax.nhlToi - 15) * .003, -.03, .05) + clamp((+ax.nhlShots - 2) * .015, -.02, .04);
+  if (ax.nhlSavePct !== undefined) advanced += clamp((+ax.nhlSavePct - .9) * 1.5, -.04, .06);
+  if (ax.nbaMin !== undefined) advanced += clamp((+ax.nbaMin - 28) * .003, -.03, .06) + clamp((+ax.nbaPtsAvg - 14) * .002, -.02, .04);
   const inj = p.injury === 'Q' ? .95 : p.injury === 'D' ? .78 : p.injury === 'OUT' ? .03 : 1;
   const proj = Math.max(0, base * (1 + trend + matchup + env + usageBoost + advanced) * inj);
   const volatility = sd(g), floor = Math.max(0, proj - .72 * volatility), ceiling = proj + 1.15 * volatility;
@@ -60,6 +68,11 @@ export const gradeClass = x => 'grade' + x;
 
 export function usageLabel(p) {
   const a = p.auto || {};
+  if (a.mlbIP !== undefined) return `${(+a.mlbIP).toFixed(1)} IP · ${(+a.mlbKrate || 0).toFixed(2)} K/IP`;
+  if (a.mlbPA !== undefined) return `${(+a.mlbPA).toFixed(1)} PA · ${(+a.mlbISO || 0).toFixed(3)} ISO`;
+  if (a.nhlSavePct !== undefined) return `${((+a.nhlSavePct) * 100).toFixed(1)}% SV%`;
+  if (a.nhlToi !== undefined) return `${(+a.nhlToi).toFixed(1)} TOI · ${(+a.nhlShots || 0).toFixed(1)} SOG`;
+  if (a.nbaMin !== undefined) return `${(+a.nbaMin).toFixed(1)} MIN · ${(+a.nbaPtsAvg || 0).toFixed(1)} PTS`;
   if (p.pos === 'QB') return a.attempts ? `${(+a.attempts).toFixed(1)} att · ${(+a.rushAttempts || 0).toFixed(1)} rush` : (p.usage || '—');
   if (p.pos === 'RB') return a.opportunities ? `${(+a.opportunities).toFixed(1)} opp · ${(+a.targets || 0).toFixed(1)} tgt` : (p.usage || '—');
   if (p.pos === 'WR' || p.pos === 'TE') return a.targets ? `${(+a.targets).toFixed(1)} tgt · ${((+a.targetShare || 0) * 100).toFixed(0)}% share` : (p.usage || '—');

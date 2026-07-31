@@ -10,6 +10,7 @@ export const SPORTS = {
     positions: ['QB', 'RB', 'WR', 'TE', 'DST'],
     posPriority: ['QB', 'RB', 'WR', 'TE', 'DST'],
     posAliases: { 'D/ST': 'DST' },
+    defendedPositions: ['QB', 'RB', 'WR', 'TE'],
     rosterSlots: [
       { label: 'QB', elig: ['QB'] },
       { label: 'RB', elig: ['RB'] },
@@ -26,10 +27,11 @@ export const SPORTS = {
   nba: {
     id: 'nba', label: 'NBA', icon: '🏀',
     dkSport: 'NBA', espnPath: 'basketball/nba',
-    hasSchedule: true, hasAutoStats: false, stackMode: 'none',
+    hasSchedule: true, hasAutoStats: true, stackMode: 'none',
     positions: ['PG', 'SG', 'SF', 'PF', 'C'],
     posPriority: ['PG', 'SG', 'SF', 'PF', 'C'],
     posAliases: {},
+    defendedPositions: ['G', 'F', 'C'],
     rosterSlots: [
       { label: 'PG', elig: ['PG'] },
       { label: 'SG', elig: ['SG'] },
@@ -45,10 +47,11 @@ export const SPORTS = {
   mlb: {
     id: 'mlb', label: 'MLB', icon: '⚾',
     dkSport: 'MLB', espnPath: 'baseball/mlb',
-    hasSchedule: true, hasAutoStats: false, stackMode: 'none',
+    hasSchedule: true, hasAutoStats: true, stackMode: 'team', stackExcludePos: ['P'],
     positions: ['P', 'C', '1B', '2B', '3B', 'SS', 'OF'],
     posPriority: ['P', 'C', '1B', '2B', '3B', 'SS', 'OF'],
     posAliases: { SP: 'P', RP: 'P' },
+    defendedPositions: ['C', '1B', '2B', '3B', 'SS', 'OF'],
     rosterSlots: [
       { label: 'P', elig: ['P'] },
       { label: 'P', elig: ['P'] },
@@ -66,10 +69,11 @@ export const SPORTS = {
   nhl: {
     id: 'nhl', label: 'NHL', icon: '🏒',
     dkSport: 'NHL', espnPath: 'hockey/nhl',
-    hasSchedule: true, hasAutoStats: false, stackMode: 'none',
+    hasSchedule: true, hasAutoStats: true, stackMode: 'team', stackExcludePos: ['G'],
     positions: ['C', 'W', 'D', 'G'],
     posPriority: ['C', 'W', 'D', 'G'],
     posAliases: { LW: 'W', RW: 'W' },
+    defendedPositions: ['C', 'W', 'D'],
     rosterSlots: [
       { label: 'C', elig: ['C'] },
       { label: 'C', elig: ['C'] },
@@ -86,10 +90,11 @@ export const SPORTS = {
   wnba: {
     id: 'wnba', label: 'WNBA', icon: '🏀',
     dkSport: 'WNBA', espnPath: 'basketball/wnba',
-    hasSchedule: true, hasAutoStats: false, stackMode: 'none',
+    hasSchedule: true, hasAutoStats: true, stackMode: 'none',
     positions: ['G', 'F'],
     posPriority: ['G', 'F'],
     posAliases: {},
+    defendedPositions: ['G', 'F'],
     rosterSlots: [
       { label: 'G', elig: ['G'] },
       { label: 'G', elig: ['G'] },

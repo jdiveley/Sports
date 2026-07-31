@@ -4,30 +4,44 @@ import { calc } from '../../lib/calc.js';
 export default function StacksPane() {
   const { settings, sportConfig, updateSetting, stackResults, runFindStacks } = useDfs();
 
-  if (sportConfig.stackMode !== 'passcatcher') {
+  if (sportConfig.stackMode === 'none') {
     return (
       <div className="card">
         <h3>Stack Finder</h3>
-        <p className="small">Traditional QB/pass-catcher stacking isn't a meaningful strategy for {sportConfig.label}. This tab isn't available for this sport yet.</p>
+        <p className="small">Traditional stacking isn't a meaningful strategy for {sportConfig.label}. This tab isn't available for this sport yet.</p>
       </div>
     );
   }
+
+  const isTeam = sportConfig.stackMode === 'team';
 
   return (
     <>
       <div className="card">
         <h3>Stack Finder</h3>
         <div className="grid">
-          <div className="c4"><label>Stack type</label>
-            <select value={settings.stackType} onChange={e => updateSetting('stackType', e.target.value)}>
-              <option value="double">QB + 2 pass catchers</option>
-              <option value="single">QB + 1 pass catcher</option>
-              <option value="bringback">QB + 2 pass catchers + opponent bring-back</option>
-            </select>
-          </div>
+          {isTeam ? (
+            <div className="c4"><label>Stack size</label>
+              <select value={settings.teamStackSize} onChange={e => updateSetting('teamStackSize', e.target.value)}>
+                <option value="2">2 players, same team</option>
+                <option value="3">3 players, same team</option>
+                <option value="4">4 players, same team</option>
+                <option value="5">5 players, same team</option>
+              </select>
+            </div>
+          ) : (
+            <div className="c4"><label>Stack type</label>
+              <select value={settings.stackType} onChange={e => updateSetting('stackType', e.target.value)}>
+                <option value="double">QB + 2 pass catchers</option>
+                <option value="single">QB + 1 pass catcher</option>
+                <option value="bringback">QB + 2 pass catchers + opponent bring-back</option>
+              </select>
+            </div>
+          )}
           <div className="c4"><label>Max stack salary</label><input type="number" value={settings.stackSalary} onChange={e => updateSetting('stackSalary', e.target.value)} /></div>
           <div className="c4"><label>Minimum stack projection</label><input type="number" value={settings.stackMin} onChange={e => updateSetting('stackMin', e.target.value)} /></div>
         </div>
+        {isTeam && <p className="note" style={{ marginTop: 9 }}>Finds the best-projected groups of players from the same team{sportConfig.stackExcludePos?.length ? ` (excluding ${sportConfig.stackExcludePos.join('/')})` : ''} — use it to find lineup cores, not as a hard optimizer constraint.</p>}
         <button className="blue" style={{ width: '100%', marginTop: 9 }} onClick={runFindStacks}>Find best stacks</button>
       </div>
       <div className="card">

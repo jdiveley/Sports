@@ -4,7 +4,11 @@ import { normTeam } from '../lib/calc.js';
 import { fetchSchedule, applySchedule as applyScheduleToPlayers } from '../lib/schedule.js';
 import { mapDK, mergeDKPlayers, rowsFromDraftables, fetchDKSlates as fetchDKSlatesApi, fetchDKDraftables } from '../lib/dk.js';
 import { fetchNFLVerseRows, matchAutoStats, buildDefenseRanks } from '../lib/nflverse.js';
-import { findStacks as findStacksLib, optimize as optimizeLib, buildDKExportCSV, downloadText } from '../lib/optimizer.js';
+import { matchAutoStats as matchAutoStatsGeneric, buildDefenseRanks as buildDefenseRanksGeneric } from '../lib/autostats/common.js';
+import { fetchMLBRows, buildMLBUsage } from '../lib/autostats/mlb.js';
+import { fetchNBARows, buildNBAUsage, NBA_DEFENDED_POSITIONS, nbaPosGroup } from '../lib/autostats/nba.js';
+import { fetchNHLRows, buildNHLUsage } from '../lib/autostats/nhl.js';
+import { findStacks as findStacksLib, findTeamStacks as findTeamStacksLib, optimize as optimizeLib, buildDKExportCSV, downloadText } from '../lib/optimizer.js';
 import { SPORTS, SPORT_LIST, DEFAULT_SPORT, tabsForSport } from '../lib/sports.js';
 
 const SPORT_KEY = 'ultimate_dfs_v3_sport';
@@ -23,7 +27,7 @@ const DEFAULT_SETTINGS = {
   season: 2026, week: 1, seasonType: 2,
   historyWeeks: 5, statScoring: 'ppr',
   researchPos: 'ALL', researchSort: 'grade', researchSearch: '',
-  stackType: 'double', stackSalary: 30000, stackMin: 35,
+  stackType: 'double', stackSalary: 30000, stackMin: 35, teamStackSize: 3,
   site: 'dk', salaryCap: 50000, minSpend: 47000, lineupCount: 10, strategy: 'balanced',
   recentWeight: .65, matchupImpact: .10, variance: 8,
   maxTeam: 4, maxExposure: 70, uniquePlayers: 2, attempts: 12000,
@@ -81,7 +85,7 @@ export function DfsProvider({ children }) {
     setDkLiveStatus('Not loaded yet.');
     setDkSlateOptions([]);
     setAutoData({ rows: [], defenseRanks: {}, unmatched: [], loaded: false, source: '' });
-    setSettingsState(s => ({ ...s, salaryCap: nextConfig.salaryCap, minSpend: nextConfig.minSpend, researchPos: 'ALL' }));
+    setSettingsState(s => ({ ...s, salaryCap: nextConfig.salaryCap, minSpend: nextConfig.minSpend, researchPos: 'ALL', defPos: nextConfig.defendedPositions?.[0] || 'QB' }));
     setTab('home');
     toast(`Switched to ${nextConfig.label}`);
   }
@@ -163,8 +167,9 @@ export function DfsProvider({ children }) {
   }
 
   function runFindStacks() {
-    if (sportConfig.stackMode !== 'passcatcher') { toast(`Stacking isn't applicable for ${sportConfig.label}`); return; }
-    setStackResults(findStacksLib(players, settings));
+    if (sportConfig.stackMode === 'passcatcher') { setStackResults(findStacksLib(players, settings)); return; }
+    if (sportConfig.stackMode === 'team') { setStackResults(findTeamStacksLib(players, settings, sportConfig)); return; }
+    toast(`Stacking isn't applicable for ${sportConfig.label}`);
   }
 
   function runOptimize() {
@@ -251,21 +256,61 @@ export function DfsProvider({ children }) {
 
   async function fetchAutoStatsAction() {
     if (!sportConfig.hasAutoStats) { toast(`Automatic stats aren't available for ${sportConfig.label} yet`); return; }
-    const target = +settings.week, season = +settings.season, hist = +settings.historyWeeks || 5;
-    if (target <= 1) { setAutoStatus('Week 1 has no current-season prior weeks. Use prior-season data manually or import preseason projections.'); return; }
-    setAutoStatus('Downloading nflverse weekly player stats…');
+    const hist = +settings.historyWeeks || 5;
+
+    if (sport === 'nfl') {
+      const target = +settings.week, season = +settings.season;
+      if (target <= 1) { setAutoStatus('Week 1 has no current-season prior weeks. Use prior-season data manually or import preseason projections.'); return; }
+      setAutoStatus('Downloading nflverse weekly player stats…');
+      try {
+        const { rows, minWeek, maxWeek, source } = await fetchNFLVerseRows(season, target, hist);
+        const m = matchAutoStats(players, rows, minWeek, maxWeek, settings.statScoring);
+        const d = buildDefenseRanks(m.players, rows, settings.statScoring);
+        setPlayers(d.players);
+        setAutoData({ rows, defenseRanks: d.ranks, unmatched: m.unmatched, loaded: true, source });
+        setAutoStatus(`Loaded ${rows.length.toLocaleString()} player-week records from nflverse for Weeks ${minWeek}–${maxWeek}.`);
+        setAutoBadge('LIVE');
+        toast('Historical stats matched');
+      } catch (err) {
+        console.error(err);
+        setAutoStatus('Automatic nflverse download failed. Your imported/manual data is untouched. This can happen before current-season files are published or if a browser blocks the request.');
+        setAutoBadge('FALLBACK');
+        toast('Auto data unavailable');
+      }
+      return;
+    }
+
+    setAutoStatus(`Downloading recent ${sportConfig.label} game data…`);
     try {
-      const { rows, minWeek, maxWeek, source } = await fetchNFLVerseRows(season, target, hist);
-      const m = matchAutoStats(players, rows, minWeek, maxWeek, settings.statScoring);
-      const d = buildDefenseRanks(m.players, rows, settings.statScoring);
+      let fetchResult, usageBuilder, positions, posGroup;
+      if (sport === 'mlb') {
+        fetchResult = await fetchMLBRows(+settings.season, hist);
+        usageBuilder = buildMLBUsage;
+        positions = sportConfig.defendedPositions;
+      } else if (sport === 'nba' || sport === 'wnba') {
+        fetchResult = await fetchNBARows(sportConfig, Math.max(7, hist * 3));
+        usageBuilder = buildNBAUsage;
+        positions = NBA_DEFENDED_POSITIONS;
+        posGroup = nbaPosGroup;
+      } else if (sport === 'nhl') {
+        fetchResult = await fetchNHLRows(sportConfig, Math.max(7, hist * 3));
+        usageBuilder = buildNHLUsage;
+        positions = sportConfig.defendedPositions;
+      } else {
+        toast(`Automatic stats aren't available for ${sportConfig.label} yet`);
+        return;
+      }
+      const { rows, source } = fetchResult;
+      const m = matchAutoStatsGeneric(players, rows, hist, usageBuilder);
+      const d = buildDefenseRanksGeneric(m.players, rows, positions, posGroup);
       setPlayers(d.players);
       setAutoData({ rows, defenseRanks: d.ranks, unmatched: m.unmatched, loaded: true, source });
-      setAutoStatus(`Loaded ${rows.length.toLocaleString()} player-week records from nflverse for Weeks ${minWeek}–${maxWeek}.`);
+      setAutoStatus(`Loaded ${rows.length.toLocaleString()} player-game records from ${source}.`);
       setAutoBadge('LIVE');
       toast('Historical stats matched');
     } catch (err) {
       console.error(err);
-      setAutoStatus('Automatic nflverse download failed. Your imported/manual data is untouched. This can happen before current-season files are published or if a browser blocks the request.');
+      setAutoStatus(`Automatic ${sportConfig.label} data download failed. Your imported/manual data is untouched. This can happen if the source is temporarily unavailable or a browser blocks the request.`);
       setAutoBadge('FALLBACK');
       toast('Auto data unavailable');
     }
