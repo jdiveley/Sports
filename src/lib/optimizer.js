@@ -34,28 +34,33 @@ function weightedPick(arr, settings) {
   return arr[arr.length - 1];
 }
 
-function lineupValid(line, settings, states) {
+function lineupValid(line, settings, states, sportConfig) {
+  if (line.length !== sportConfig.rosterSlots.length) return false;
   if (line.some(x => !x) || new Set(line.map(p => p.name)).size !== line.length) return false;
   const cap = +settings.salaryCap, min = +settings.minSpend, sal = line.reduce((s, p) => s + p.salary, 0);
   if (sal > cap || sal < min) return false;
-  const max = +settings.maxTeam || 4, ct = {};
-  for (const p of line) { ct[p.team] = (ct[p.team] || 0) + 1; if (ct[p.team] > max) return false; }
+  if (sportConfig.hasTeams !== false) {
+    const max = +settings.maxTeam || 4, ct = {};
+    for (const p of line) { ct[p.team] = (ct[p.team] || 0) + 1; if (ct[p.team] > max) return false; }
+  }
   const locks = Object.keys(states).filter(k => states[k] === 'locked');
   if (locks.some(n => !line.some(p => p.name === n))) return false;
   if (line.some(p => states[p.name] === 'excluded')) return false;
-  const q = line.find(p => p.pos === 'QB');
-  if (settings.qbStack && q && !line.some(p => p.team === q.team && ['WR', 'TE'].includes(p.pos))) return false;
-  if (settings.bringBack && q && !line.some(p => p.team === q.opp && ['RB', 'WR', 'TE'].includes(p.pos))) return false;
+  if (sportConfig.stackMode === 'passcatcher') {
+    const q = line.find(p => p.pos === 'QB');
+    if (settings.qbStack && q && !line.some(p => p.team === q.team && ['WR', 'TE'].includes(p.pos))) return false;
+    if (settings.bringBack && q && !line.some(p => p.team === q.opp && ['RB', 'WR', 'TE'].includes(p.pos))) return false;
+  }
   return true;
 }
 
-function randomLine(pool, settings) {
-  const pos = x => pool.filter(p => p.pos === x);
-  const q = weightedPick(pos('QB'), settings), line = [q];
-  const add = x => { const options = x.filter(p => !line.some(z => z.name === p.name)); const p = weightedPick(options, settings); if (p) line.push(p); };
-  add(pos('RB')); add(pos('RB')); add(pos('WR')); add(pos('WR')); add(pos('WR')); add(pos('TE'));
-  const flex = pool.filter(p => ['RB', 'WR', 'TE'].includes(p.pos));
-  add(flex); add(pos('DST'));
+function randomLine(pool, settings, sportConfig) {
+  const line = [];
+  for (const slot of sportConfig.rosterSlots) {
+    const options = pool.filter(p => slot.elig.includes(p.pos) && !line.some(z => z.name === p.name));
+    const p = weightedPick(options, settings);
+    if (p) line.push(p);
+  }
   return line;
 }
 
@@ -101,15 +106,15 @@ function repairSalary(line, pool, settings) {
   return line;
 }
 
-export function optimize(players, settings, states) {
+export function optimize(players, settings, states, sportConfig) {
   const pool = players.filter(p => !(settings.excludeOut && p.injury === 'OUT') && states[p.name] !== 'excluded');
-  if (['QB', 'RB', 'WR', 'TE', 'DST'].some(x => !pool.some(p => p.pos === x))) return { error: 'Player pool is missing positions' };
+  if (sportConfig.positions.some(x => !pool.some(p => p.pos === x))) return { error: 'Player pool is missing positions' };
   const attempts = clamp(+settings.attempts || 12000, 1000, 50000);
   const cand = new Map();
   const variance = (+settings.variance || 0) / 100;
   for (let z = 0; z < attempts; z++) {
-    const line = repairSalary(randomLine(pool, settings), pool, settings);
-    if (!lineupValid(line, settings, states)) continue;
+    const line = repairSalary(randomLine(pool, settings, sportConfig), pool, settings);
+    if (!lineupValid(line, settings, states, sportConfig)) continue;
     const k = lineKey(line);
     if (cand.has(k)) continue;
     let score = line.reduce((s, p) => s + strategyScore(p, settings), 0);
@@ -136,14 +141,22 @@ export function optimize(players, settings, states) {
   return { results: picked };
 }
 
-export function lineupToSlots(line) {
-  const q = line.find(p => p.pos === 'QB'), dst = line.find(p => p.pos === 'DST');
-  const rbs = line.filter(p => p.pos === 'RB'), wrs = line.filter(p => p.pos === 'WR'), tes = line.filter(p => p.pos === 'TE');
-  if (!q || rbs.length < 2 || wrs.length < 3 || tes.length < 1 || !dst) return null;
-  const used = new Set([q.name, rbs[0].name, rbs[1].name, wrs[0].name, wrs[1].name, wrs[2].name, tes[0].name, dst.name]);
-  const flex = line.find(p => ['RB', 'WR', 'TE'].includes(p.pos) && !used.has(p.name));
-  if (!flex) return null;
-  return [q, rbs[0], rbs[1], wrs[0], wrs[1], wrs[2], tes[0], flex, dst];
+// Assigns each roster player to a DK slot, most-specific slot (fewest eligible
+// positions) first, so narrow slots (QB, DST) claim their player before wide
+// ones (FLEX/UTIL) greedily grab someone who was needed elsewhere.
+export function lineupToSlots(line, sportConfig) {
+  const order = sportConfig.rosterSlots
+    .map((slot, i) => ({ slot, i }))
+    .sort((a, b) => a.slot.elig.length - b.slot.elig.length);
+  const used = new Set();
+  const bySlotIndex = new Array(sportConfig.rosterSlots.length).fill(null);
+  for (const { slot, i } of order) {
+    const p = line.find(p => p && slot.elig.includes(p.pos) && !used.has(p.name));
+    if (!p) return null;
+    used.add(p.name);
+    bySlotIndex[i] = p;
+  }
+  return bySlotIndex;
 }
 
 export function dkCell(p, cellFormat) {
@@ -152,12 +165,12 @@ export function dkCell(p, cellFormat) {
   return p.dkId || p.name;
 }
 
-export function buildDKExportCSV(results, dkState, exportMode, cellFormat) {
-  const classic = ['QB', 'RB', 'RB', 'WR', 'WR', 'WR', 'TE', 'FLEX', 'DST'];
-  const headers = (exportMode === 'template' && dkState.templateRoster.length >= 9) ? dkState.templateRoster.slice(0, 9) : classic;
+export function buildDKExportCSV(results, dkState, exportMode, cellFormat, sportConfig) {
+  const classic = sportConfig.rosterSlots.map(s => s.label);
+  const headers = (exportMode === 'template' && dkState.templateRoster.length >= classic.length) ? dkState.templateRoster.slice(0, classic.length) : classic;
   const rows = [];
-  for (const r of results) { const slots = lineupToSlots(r.line); if (slots) rows.push(slots.map(p => dkCell(p, cellFormat))); }
-  if (!rows.length) return { error: 'No exportable NFL Classic lineups' };
+  for (const r of results) { const slots = lineupToSlots(r.line, sportConfig); if (slots) rows.push(slots.map(p => dkCell(p, cellFormat))); }
+  if (!rows.length) return { error: `No exportable ${sportConfig.label} Classic lineups` };
   const missing = results.flatMap(r => r.line).filter(p => !p.dkId);
   const csv = [headers.map(csvEsc).join(','), ...rows.map(r => r.map(csvEsc).join(','))].join('\n');
   return { csv, warnMissingIds: cellFormat !== 'name' && missing.length > 0 };

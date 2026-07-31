@@ -1,7 +1,7 @@
 import { normTeam, normalizeName } from './calc.js';
 import { parseCSVMatrix, detectDKHeader, findCol, parseNameID } from './csv.js';
 
-export function mapDK(text) {
+export function mapDK(text, sportConfig) {
   const m = parseCSVMatrix(text), hi = detectDKHeader(m);
   if (hi < 0) return { error: 'Could not find a DraftKings player/salary header row.' };
   const h = m[hi], idx = {
@@ -14,7 +14,7 @@ export function mapDK(text) {
     team: findCol(h, ['TeamAbbrev', 'Team Abbrev', 'Team']),
     avg: findCol(h, ['AvgPointsPerGame', 'Avg Points Per Game', 'FPPG'])
   };
-  const rosterNames = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'DST', 'D/ST', 'UTIL', 'CPT'];
+  const rosterNames = [...new Set(sportConfig.rosterSlots.map(s => s.label.toUpperCase()))].concat('CPT');
   const templateRoster = h.filter(x => rosterNames.includes((x || '').trim().toUpperCase()));
   const rows = [];
   for (const r of m.slice(hi + 1)) {
@@ -37,13 +37,10 @@ export function mapDK(text) {
   };
 }
 
-export function dkPrimaryPos(roster) {
-  const p = (roster || '').toUpperCase().split('/').map(x => x.trim());
-  if (p.includes('QB')) return 'QB';
-  if (p.includes('RB')) return 'RB';
-  if (p.includes('WR')) return 'WR';
-  if (p.includes('TE')) return 'TE';
-  if (p.includes('DST') || p.includes('D/ST')) return 'DST';
+export function primaryPosFor(roster, sportConfig) {
+  const raw = (roster || '').toUpperCase().split('/').map(x => x.trim());
+  const p = raw.map(x => sportConfig.posAliases[x] || x);
+  for (const cand of sportConfig.posPriority) if (p.includes(cand)) return cand;
   return p[0] || '';
 }
 
@@ -54,13 +51,13 @@ export function gameOpponent(game, team) {
   return t === a ? b : t === b ? a : '';
 }
 
-export function mergeDKPlayers(players, rows) {
+export function mergeDKPlayers(players, rows, sportConfig) {
   const next = players.map(p => ({ ...p }));
   const existing = {};
   next.forEach(p => existing[normalizeName(p.name)] = p);
   rows.forEach(d => {
     const key = normalizeName(d.name);
-    const pos = dkPrimaryPos(d.roster), opp = gameOpponent(d.game, d.team);
+    const pos = primaryPosFor(d.roster, sportConfig), opp = gameOpponent(d.game, d.team);
     let p = existing[key];
     if (p) {
       p.salary = d.salary; p.dkId = d.dkId; p.dkRoster = d.roster;
@@ -99,8 +96,8 @@ export function rowsFromDraftables(json) {
   }).filter(r => r.name && r.salary && r.roster);
 }
 
-export async function fetchDKSlates() {
-  const r = await fetch('https://api.draftkings.com/draftgroups/v1/?sport=NFL');
+export async function fetchDKSlates(sportConfig) {
+  const r = await fetch(`https://api.draftkings.com/draftgroups/v1/?sport=${sportConfig.dkSport}`);
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   const seen = new Set();

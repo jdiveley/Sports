@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDfs } from '../../state/DfsContext.jsx';
 import { calc, gradeClass, usageLabel } from '../../lib/calc.js';
 import { DEMO } from '../../lib/demo.js';
 
-const EMPTY_FORM = { name: '', pos: 'QB', team: '', opp: '', salary: '', games: '', rank: '16', total: '', implied: '', ownership: '', usage: '', injury: '' };
+const emptyForm = pos => ({ name: '', pos, team: '', opp: '', salary: '', games: '', rank: '16', total: '', implied: '', ownership: '', usage: '', injury: '' });
 
 export default function PoolPane() {
-  const { players, settings, importCsv, addPlayer, delPlayer, clearPlayers, exportCsvToClipboard } = useDfs();
+  const { players, settings, sportConfig, importCsv, addPlayer, delPlayer, clearPlayers, exportCsvToClipboard } = useDfs();
   const [csvText, setCsvText] = useState('');
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(() => emptyForm(sportConfig.positions[0]));
+
+  useEffect(() => { setForm(emptyForm(sportConfig.positions[0])); }, [sportConfig]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -31,7 +33,7 @@ export default function PoolPane() {
           <div className="c3"><label>Name</label><input value={form.name} onChange={e => set('name', e.target.value)} /></div>
           <div className="c2"><label>Position</label>
             <select value={form.pos} onChange={e => set('pos', e.target.value)}>
-              <option>QB</option><option>RB</option><option>WR</option><option>TE</option><option>DST</option>
+              {sportConfig.positions.map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           <div className="c2"><label>Team</label><input value={form.team} onChange={e => set('team', e.target.value)} /></div>

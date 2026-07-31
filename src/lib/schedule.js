@@ -1,7 +1,7 @@
 import { normTeam } from './calc.js';
 
-export async function fetchSchedule(season, week, seasonType) {
-  const u = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=${seasonType}&week=${week}&limit=100`;
+export async function fetchSchedule(season, week, seasonType, sportConfig) {
+  const u = `https://site.api.espn.com/apis/site/v2/sports/${sportConfig.espnPath}/scoreboard?dates=${season}&seasontype=${seasonType}&week=${week}&limit=100`;
   const r = await fetch(u);
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const d = await r.json();

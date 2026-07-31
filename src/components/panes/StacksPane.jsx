@@ -2,7 +2,16 @@ import { useDfs } from '../../state/DfsContext.jsx';
 import { calc } from '../../lib/calc.js';
 
 export default function StacksPane() {
-  const { settings, updateSetting, stackResults, runFindStacks } = useDfs();
+  const { settings, sportConfig, updateSetting, stackResults, runFindStacks } = useDfs();
+
+  if (sportConfig.stackMode !== 'passcatcher') {
+    return (
+      <div className="card">
+        <h3>Stack Finder</h3>
+        <p className="small">Traditional QB/pass-catcher stacking isn't a meaningful strategy for {sportConfig.label}. This tab isn't available for this sport yet.</p>
+      </div>
+    );
+  }
 
   return (
     <>

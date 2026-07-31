@@ -32,7 +32,7 @@ function RankList({ arr, metric, settings, n = 8 }) {
 }
 
 export default function ResearchPane() {
-  const { players, settings, updateSetting } = useDfs();
+  const { players, settings, sportConfig, updateSetting } = useDfs();
 
   const enriched = useMemo(() => players.map(p => ({ p, x: calc(p, settings) })), [players, settings.recentWeight, settings.matchupImpact]);
 
@@ -59,7 +59,8 @@ export default function ResearchPane() {
         <div className="grid">
           <div className="c4"><label>Position filter</label>
             <select value={settings.researchPos} onChange={e => updateSetting('researchPos', e.target.value)}>
-              <option value="ALL">All positions</option><option>QB</option><option>RB</option><option>WR</option><option>TE</option><option>DST</option>
+              <option value="ALL">All positions</option>
+              {sportConfig.positions.map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           <div className="c4"><label>Sort by</label>

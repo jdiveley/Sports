@@ -1,13 +1,23 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { parseCSV, csvEsc } from '../lib/csv.js';
 import { normTeam } from '../lib/calc.js';
 import { fetchSchedule, applySchedule as applyScheduleToPlayers } from '../lib/schedule.js';
 import { mapDK, mergeDKPlayers, rowsFromDraftables, fetchDKSlates as fetchDKSlatesApi, fetchDKDraftables } from '../lib/dk.js';
 import { fetchNFLVerseRows, matchAutoStats, buildDefenseRanks } from '../lib/nflverse.js';
 import { findStacks as findStacksLib, optimize as optimizeLib, buildDKExportCSV, downloadText } from '../lib/optimizer.js';
+import { SPORTS, SPORT_LIST, DEFAULT_SPORT, tabsForSport } from '../lib/sports.js';
 
-const STORAGE_KEY = 'ultimate_dfs_v3_players';
-const TAB_ORDER = ['home', 'slate', 'dk', 'datalab', 'pool', 'research', 'stacks', 'optimizer', 'lineups'];
+const SPORT_KEY = 'ultimate_dfs_v3_sport';
+const playersKey = sport => `ultimate_dfs_v3_players_${sport}`;
+
+function loadStoredSport() {
+  const s = localStorage.getItem(SPORT_KEY);
+  return SPORTS[s] ? s : DEFAULT_SPORT;
+}
+
+function loadStoredPlayers(sport) {
+  try { return JSON.parse(localStorage.getItem(playersKey(sport)) || '[]'); } catch { return []; }
+}
 
 const DEFAULT_SETTINGS = {
   season: 2026, week: 1, seasonType: 2,
@@ -27,16 +37,18 @@ const EMPTY_DK_STATE = { loaded: false, fileName: '', headerRow: 0, headers: [],
 const DfsContext = createContext(null);
 
 export function DfsProvider({ children }) {
-  const [players, setPlayers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-  });
+  const [sport, setSportState] = useState(loadStoredSport);
+  const sportConfig = SPORTS[sport];
+  const TAB_ORDER = useMemo(() => tabsForSport(sportConfig), [sportConfig]);
+
+  const [players, setPlayers] = useState(() => loadStoredPlayers(sport));
   const [games, setGames] = useState([]);
   const [results, setResults] = useState([]);
   const [stackResults, setStackResults] = useState([]);
   const [lockStates, setLockStates] = useState({});
   const [autoData, setAutoData] = useState({ rows: [], defenseRanks: {}, unmatched: [], loaded: false, source: '' });
   const [dkState, setDkState] = useState(EMPTY_DK_STATE);
-  const [settings, setSettingsState] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettingsState] = useState(() => ({ ...DEFAULT_SETTINGS, salaryCap: sportConfig.salaryCap, minSpend: sportConfig.minSpend }));
   const [tab, setTab] = useState('home');
 
   const [scheduleStatus, setScheduleStatus] = useState('Load the schedule, then import your DFS salary/player CSV.');
@@ -51,8 +63,28 @@ export function DfsProvider({ children }) {
   const toastTimer = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
-  }, [players]);
+    localStorage.setItem(playersKey(sport), JSON.stringify(players));
+  }, [players, sport]);
+
+  function setSport(next) {
+    if (!SPORTS[next] || next === sport) return;
+    const nextConfig = SPORTS[next];
+    localStorage.setItem(SPORT_KEY, next);
+    setSportState(next);
+    setPlayers(loadStoredPlayers(next));
+    setGames([]);
+    setResults([]);
+    setStackResults([]);
+    setLockStates({});
+    setDkState(EMPTY_DK_STATE);
+    setDkStatus('No DraftKings slate imported.');
+    setDkLiveStatus('Not loaded yet.');
+    setDkSlateOptions([]);
+    setAutoData({ rows: [], defenseRanks: {}, unmatched: [], loaded: false, source: '' });
+    setSettingsState(s => ({ ...s, salaryCap: nextConfig.salaryCap, minSpend: nextConfig.minSpend, researchPos: 'ALL' }));
+    setTab('home');
+    toast(`Switched to ${nextConfig.label}`);
+  }
 
   function toast(text) {
     setToastText(text);
@@ -70,9 +102,10 @@ export function DfsProvider({ children }) {
   }
 
   async function loadSchedule() {
+    if (!sportConfig.hasSchedule) { toast(`Schedule import isn't available for ${sportConfig.label} yet`); return; }
     setScheduleStatus('Loading weekly schedule…');
     try {
-      const list = await fetchSchedule(+settings.season, +settings.week, +settings.seasonType);
+      const list = await fetchSchedule(+settings.season, +settings.week, +settings.seasonType, sportConfig);
       setGames(list);
       setPlayers(p => applySchedule(p, list));
       setScheduleStatus(`Loaded ${list.length} games for ${settings.season} Week ${settings.week}.`);
@@ -130,11 +163,12 @@ export function DfsProvider({ children }) {
   }
 
   function runFindStacks() {
+    if (sportConfig.stackMode !== 'passcatcher') { toast(`Stacking isn't applicable for ${sportConfig.label}`); return; }
     setStackResults(findStacksLib(players, settings));
   }
 
   function runOptimize() {
-    const out = optimizeLib(players, settings, lockStates);
+    const out = optimizeLib(players, settings, lockStates, sportConfig);
     if (out.error) { toast(out.error); return; }
     setResults(out.results);
     setTab('lineups');
@@ -148,11 +182,11 @@ export function DfsProvider({ children }) {
   }
 
   function mergeDkRows(rows) {
-    setPlayers(prev => applySchedule(mergeDKPlayers(prev, rows), games));
+    setPlayers(prev => applySchedule(mergeDKPlayers(prev, rows, sportConfig), games));
   }
 
   function importDkCsv(text, fileName) {
-    const out = mapDK(text);
+    const out = mapDK(text, sportConfig);
     if (out.error) { setDkStatus(out.error); toast('DK header not detected'); return; }
     setDkState({ ...out.dkState, fileName });
     mergeDkRows(out.rows);
@@ -167,16 +201,16 @@ export function DfsProvider({ children }) {
   }
 
   async function fetchDkSlatesAction() {
-    setDkLiveStatus('Loading NFL slates from DraftKings…');
+    setDkLiveStatus(`Loading ${sportConfig.label} slates from DraftKings…`);
     try {
-      const groups = await fetchDKSlatesApi();
+      const groups = await fetchDKSlatesApi(sportConfig);
       const options = groups.map(g => {
         const d = g.minStartTime ? new Date(g.minStartTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
         const label = `${(g.startTimeSuffix || '').trim() || 'Slate ' + g.draftGroupId} · ${d}`;
         return { value: String(g.draftGroupId), label };
       });
       setDkSlateOptions(options);
-      setDkLiveStatus(options.length ? `${options.length} upcoming NFL Classic slates found. Pick one and tap Import slate.` : 'No upcoming NFL Classic slates found right now.');
+      setDkLiveStatus(options.length ? `${options.length} upcoming ${sportConfig.label} Classic slates found. Pick one and tap Import slate.` : `No upcoming ${sportConfig.label} Classic slates found right now.`);
     } catch {
       setDkSlateOptions([]);
       setDkLiveStatus('Could not reach DraftKings. Try again later, or use manual CSV import below.');
@@ -209,13 +243,14 @@ export function DfsProvider({ children }) {
 
   function exportDkLineups() {
     if (!results.length) { toast('Generate lineups first'); return; }
-    const out = buildDKExportCSV(results, dkState, settings.dkExportMode, settings.dkCellFormat);
+    const out = buildDKExportCSV(results, dkState, settings.dkExportMode, settings.dkCellFormat, sportConfig);
     if (out.error) { toast(out.error); return; }
     if (out.warnMissingIds) toast('Warning: some players have no DK ID');
-    downloadText(`DraftKings_Lineups_Week_${settings.week}.csv`, out.csv);
+    downloadText(`DraftKings_${sportConfig.label}_Lineups_Week_${settings.week}.csv`, out.csv);
   }
 
   async function fetchAutoStatsAction() {
+    if (!sportConfig.hasAutoStats) { toast(`Automatic stats aren't available for ${sportConfig.label} yet`); return; }
     const target = +settings.week, season = +settings.season, hist = +settings.historyWeeks || 5;
     if (target <= 1) { setAutoStatus('Week 1 has no current-season prior weeks. Use prior-season data manually or import preseason projections.'); return; }
     setAutoStatus('Downloading nflverse weekly player stats…');
@@ -247,6 +282,7 @@ export function DfsProvider({ children }) {
   function prevTab() { const i = TAB_ORDER.indexOf(tab); goTo(TAB_ORDER[Math.max(0, i - 1)]); }
 
   const value = {
+    sport, sportConfig, setSport, sportList: SPORT_LIST,
     players, games, results, stackResults, lockStates, autoData, dkState, settings, tab, TAB_ORDER,
     scheduleStatus, dkStatus, dkLiveStatus, dkSlateOptions, autoStatus, autoBadge,
     toastText, toastVisible,

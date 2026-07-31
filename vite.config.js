@@ -3,5 +3,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: './'
+  base: './',
+  server: {
+    allowedHosts: ['sports.diveley.net']
+  },
+  preview: {
+    allowedHosts: ['sports.diveley.net']
+  }
 });

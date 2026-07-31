@@ -4,7 +4,7 @@ import { normalizeName } from '../../lib/calc.js';
 
 export default function DKPane() {
   const {
-    dkState, dkStatus, dkLiveStatus, dkSlateOptions, players, settings, updateSetting,
+    dkState, dkStatus, dkLiveStatus, dkSlateOptions, players, settings, sportConfig, updateSetting,
     importDkCsv, clearDk, fetchDkSlatesAction, loadDkSlateAction, exportDkLineups
   } = useDfs();
 
@@ -24,9 +24,9 @@ export default function DKPane() {
     <>
       <div className="card">
         <h3>🔴 Load live from DraftKings</h3>
-        <p className="note">Pulls the current NFL Classic slate list and player salaries directly from DraftKings' public API. No login required — this reads the same public data shown on the DK lobby/lineup builder.</p>
+        <p className="note">Pulls the current {sportConfig.label} Classic slate list and player salaries directly from DraftKings' public API. No login required — this reads the same public data shown on the DK lobby/lineup builder.</p>
         <div className="row">
-          <button className="secondary" onClick={fetchDkSlatesAction}>Fetch NFL slates</button>
+          <button className="secondary" onClick={fetchDkSlatesAction}>Fetch {sportConfig.label} slates</button>
           <select value={selectedSlate} onChange={e => setSelectedSlate(e.target.value)}>
             {dkSlateOptions.length
               ? dkSlateOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
@@ -88,7 +88,7 @@ export default function DKPane() {
         <div className="grid">
           <div className="c4"><label>Roster format</label>
             <select value={settings.dkExportMode} onChange={e => updateSetting('dkExportMode', e.target.value)}>
-              <option value="classic">NFL Classic: QB RB RB WR WR WR TE FLEX DST</option>
+              <option value="classic">{sportConfig.label} Classic: {sportConfig.rosterSlots.map(s => s.label).join(' ')}</option>
               <option value="template">Use detected DK template roster columns</option>
             </select>
           </div>

@@ -1,11 +1,11 @@
 import { useDfs } from '../../state/DfsContext.jsx';
 
 export default function SlatePane() {
-  const { games, loadSchedule } = useDfs();
+  const { games, sportConfig, loadSchedule } = useDfs();
   return (
     <>
       <div className="card">
-        <div className="row"><h3 style={{ marginRight: 'auto' }}>Weekly NFL slate</h3><button className="ghost auto" onClick={loadSchedule}>Refresh</button></div>
+        <div className="row"><h3 style={{ marginRight: 'auto' }}>Weekly {sportConfig.label} slate</h3><button className="ghost auto" onClick={loadSchedule}>Refresh</button></div>
         <div className="grid">
           {games.length ? games.map(g => (
             <div className="game c4" key={g.id}>
