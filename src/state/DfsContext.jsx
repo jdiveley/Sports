@@ -167,14 +167,24 @@ export function DfsProvider({ children }) {
     });
   }
 
+  // Once a DK slate is loaded, only players matched to it are actually on
+  // today's card — anything else is leftover from auto-stats history or a
+  // prior day's slate and must be excluded from lineup building.
+  function slatePool() {
+    return dkState.loaded ? players.filter(p => p.dkMatched) : players;
+  }
+
   function runFindStacks() {
-    if (sportConfig.stackMode === 'passcatcher') { setStackResults(findStacksLib(players, settings)); return; }
-    if (sportConfig.stackMode === 'team') { setStackResults(findTeamStacksLib(players, settings, sportConfig)); return; }
+    const pool = slatePool();
+    if (sportConfig.stackMode === 'passcatcher') { setStackResults(findStacksLib(pool, settings)); return; }
+    if (sportConfig.stackMode === 'team') { setStackResults(findTeamStacksLib(pool, settings, sportConfig)); return; }
     toast(`Stacking isn't applicable for ${sportConfig.label}`);
   }
 
   function runOptimize() {
-    const out = optimizeLib(players, settings, lockStates, sportConfig);
+    const pool = slatePool();
+    if (dkState.loaded && !pool.length) { toast('No players matched to the imported DK slate'); return; }
+    const out = optimizeLib(pool, settings, lockStates, sportConfig);
     if (out.error) { toast(out.error); return; }
     setResults(out.results);
     setTab('lineups');

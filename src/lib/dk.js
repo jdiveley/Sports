@@ -52,7 +52,11 @@ export function gameOpponent(game, team) {
 }
 
 export function mergeDKPlayers(players, rows, sportConfig) {
-  const next = players.map(p => ({ ...p }));
+  // Reset match state up front: a merge reflects the current DK slate, so a
+  // player who was dkMatched from a previous slate/day but doesn't appear in
+  // these rows must not stay flagged as playable — that's what let already-
+  // played-out players slip into generated lineups.
+  const next = players.map(p => ({ ...p, dkMatched: false }));
   const existing = {};
   next.forEach(p => existing[normalizeName(p.name)] = p);
   rows.forEach(d => {
@@ -60,7 +64,7 @@ export function mergeDKPlayers(players, rows, sportConfig) {
     const pos = primaryPosFor(d.roster, sportConfig), opp = gameOpponent(d.game, d.team);
     let p = existing[key];
     if (p) {
-      p.salary = d.salary; p.dkId = d.dkId; p.dkRoster = d.roster;
+      p.salary = d.salary; p.dkId = d.dkId; p.dkRoster = d.roster; p.pos = pos;
       if (d.team) p.team = d.team;
       if (opp) p.opp = opp;
       p.dkGame = d.game; p.dkAvg = d.avg; p.dkMatched = true;

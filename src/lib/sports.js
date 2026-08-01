@@ -75,7 +75,9 @@ export const SPORTS = {
     hasSchedule: true, hasAutoStats: true, stackMode: 'none',
     positions: ['G', 'F'],
     posPriority: ['G', 'F'],
-    posAliases: {},
+    // DK's WNBA draftables list positions as PG/SG/SF/PF combos (like NBA),
+    // even though WNBA roster slots are only G/F/UTIL — map down to match.
+    posAliases: { PG: 'G', SG: 'G', SF: 'F', PF: 'F' },
     defendedPositions: ['G', 'F'],
     rosterSlots: [
       { label: 'G', elig: ['G'] },

@@ -5,9 +5,11 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   server: {
+    host: true,
     allowedHosts: ['sports.diveley.net']
   },
   preview: {
+    host: true,
     allowedHosts: ['sports.diveley.net']
   }
 });
